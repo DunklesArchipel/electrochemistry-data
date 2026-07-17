@@ -70,7 +70,7 @@ system:
           supplier: Aldrich
           purity:
             value: 99.99
-            unit: percent
+            unit: pct
         type: salt
         chemicalIdentifiers:
           cas: 7681-11-0
