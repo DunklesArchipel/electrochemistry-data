@@ -45,7 +45,8 @@ Check for and convert LaTeX accent encodings to UTF-8::
 import re
 from re import Match
 
-from pybtex.database import BibliographyData, parse_file
+import latexcodec as _latexcodec  # noqa: F401  # registers "latex+latin1" codec
+from pybtex.database import BibliographyData, parse_file, parse_string
 from svgdigitizer.pdf import Pdf
 
 # Mapping of LaTeX accent commands to their UTF-8 equivalents.
@@ -230,6 +231,33 @@ def load_bib_keys(bib_path="literature/bibliography/bibliography.bib"):
     return keys
 
 
+def _escape_non_latin1(text):
+    r"""
+    Return ``text`` with characters outside latin-1 replaced by their
+    LaTeX escape sequence (e.g. ``ć`` becomes ``\'c``).
+
+    Hotfix for https://github.com/echemdb/svgdigitizer/issues/300:
+    ``svgdigitizer.pdf.Pdf.build_identifier`` translates LaTeX escapes
+    via a latin-1 round-trip and raises ``UnicodeEncodeError`` on UTF-8
+    characters outside latin-1 (which ``bibliography.bib`` deliberately
+    contains, since LaTeX accent encodings are forbidden by
+    ``validate-bib-utf8``). Remove once fixed upstream.
+
+    EXAMPLES::
+
+        >>> _escape_non_latin1("Jović")
+        "Jovi\\'c"
+
+        >>> _escape_non_latin1("plain text")
+        'plain text'
+
+    """
+    return "".join(
+        char if ord(char) < 256 else char.encode("latex+latin1").decode("latin-1")
+        for char in text
+    )
+
+
 def validate_bib_keys(
     bib_path="literature/bibliography/bibliography.bib",
 ):
@@ -249,7 +277,12 @@ def validate_bib_keys(
         >>> validate_bib_keys()  # doctest: +SKIP
 
     """
-    bib_data = parse_file(bib_path, bib_format="bibtex")
+    # Hotfix for https://github.com/echemdb/svgdigitizer/issues/300:
+    # escape non-latin-1 characters as LaTeX sequences so that
+    # Pdf.build_identifier's latin-1 round-trip does not crash.
+    with open(bib_path, encoding="utf-8") as bib_file:
+        content = _escape_non_latin1(bib_file.read())
+    bib_data = parse_string(content, bib_format="bibtex")
 
     errors = []
     checked = 0
