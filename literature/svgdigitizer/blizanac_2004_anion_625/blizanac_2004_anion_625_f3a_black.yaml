@@ -20,7 +20,7 @@ system:
             grade: Semiconductor Grade
         concentration:
           value: 0.1
-          unit: mol L⁻¹
+          unit: mol / l
       - name: Ar
         type: gas
         source:
